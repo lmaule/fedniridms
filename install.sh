@@ -207,6 +207,17 @@ install_file_manager() {
         sudo dnf install -y nautilus
         ok "nautilus installed"
     fi
+
+    # minimal Fedora doesn't create the standard XDG user dirs
+    # (Documents, Downloads, Pictures, Music, Videos, Desktop, Templates, Public)
+    # because xdg-user-dirs-update is normally triggered from a desktop session's
+    # autostart. install the package and run it for the current user so nautilus
+    # actually shows something.
+    if ! rpm -q xdg-user-dirs >/dev/null 2>&1; then
+        sudo dnf install -y xdg-user-dirs xdg-user-dirs-gtk
+    fi
+    xdg-user-dirs-update
+    ok "XDG user dirs created in $HOME"
 }
 
 # ---------- dms greeter (greetd-based login screen) ----------
