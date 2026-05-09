@@ -124,7 +124,7 @@ install_nvidia() {
     else
         # Terra ships akmod-nvidia + companions; pull them from terra explicitly
         # so we don't accidentally fall through to a different source.
-        sudo dnf install -y --setopt=install_weak_deps=False \
+        sudo dnf install -y \
             akmod-nvidia \
             xorg-x11-drv-nvidia-cuda \
             nvidia-vaapi-driver \
