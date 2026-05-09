@@ -10,7 +10,7 @@ Install script to configure a brand-new minimal Fedora install with **Niri** and
 4. **NVIDIA drivers** (from Terra) — `akmod-nvidia` + CUDA + VAAPI; sets `nvidia-drm.modeset=1`, blacklists nouveau, waits for the kernel module to build.
 5. **Niri compositor** — installs `niri`. All Wayland session bits (xdg-desktop-portal, PipeWire, Polkit, etc.) come along automatically as Niri's dependencies.
 6. **Dank Material Shell** — installs `dms` from Terra. `quickshell`, `dgop`, fonts, and other DMS deps are pulled in automatically.
-7. **DMS greeter** — installs `dms-greeter` (which pulls in `greetd`) and sets it as the default display manager (graphical target).
+7. **DMS greeter** — enables Copr `avengemedia/danklinux` (the greeter is **not** in Terra) and installs `dms-greeter` (which pulls in `greetd`). Writes `/etc/greetd/config.toml` with `command = "dms-greeter --command niri"` and sets the graphical target as default. Docs: https://danklinux.com/docs/dankgreeter/
 8. **Niri config** — writes a starter `~/.config/niri/config.kdl` that auto-spawns DMS and sets the NVIDIA Wayland env vars.
 
 The script is **idempotent** — re-running it skips anything already in place.

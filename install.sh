@@ -199,44 +199,43 @@ install_dms() {
 }
 
 # ---------- dms greeter (greetd-based login screen) ----------
+# dms-greeter is NOT in Terra — it ships from copr avengemedia/danklinux.
+# docs: https://danklinux.com/docs/dankgreeter/
 install_dms_greeter() {
     hdr "dms greeter"
 
-    # the dms greeter package itself (try the canonical name then fallbacks)
-    local greeter_pkg=""
-    for cand in dms-greeter dankmaterialshell-greeter dms-greetd; do
-        if sudo dnf install -y "$cand" >/dev/null 2>&1; then
-            greeter_pkg="$cand"
-            break
-        fi
-    done
-    if [[ -z "$greeter_pkg" ]]; then
-        err "could not find a DMS greeter package in enabled repos. try: dnf search dms greeter"
-        return 1
+    # `dnf copr` lives in dnf-plugins-core
+    if ! sudo dnf copr --help >/dev/null 2>&1; then
+        sudo dnf install -y dnf-plugins-core
     fi
-    ok "installed $greeter_pkg (greetd pulled in as a dependency)"
 
-    # point greetd at the dms greeter
+    if ! sudo dnf copr list --enabled 2>/dev/null | grep -qi 'avengemedia/danklinux'; then
+        sudo dnf copr enable -y avengemedia/danklinux
+        ok "enabled copr avengemedia/danklinux"
+    else
+        ok "copr avengemedia/danklinux already enabled"
+    fi
+
+    if rpm -q dms-greeter >/dev/null 2>&1; then
+        ok "dms-greeter already installed"
+    else
+        sudo dnf install -y dms-greeter
+        ok "dms-greeter installed (greetd pulled in as a dependency)"
+    fi
+
+    # point greetd at dms-greeter, asking it to launch niri inside the greeter session
     local greetd_cfg=/etc/greetd/config.toml
     if [[ -f "$greetd_cfg" ]]; then
         sudo cp -n "$greetd_cfg" "${greetd_cfg}.bak" || true
     fi
 
-    # the dms greeter ships a launcher; prefer it, otherwise call dms directly
-    local greeter_cmd
-    if command -v dms-greeter >/dev/null 2>&1; then
-        greeter_cmd='dms-greeter'
-    else
-        greeter_cmd='dms run --greeter'
-    fi
-
     sudo install -d -m 0755 /etc/greetd
-    sudo tee "$greetd_cfg" >/dev/null <<EOF
+    sudo tee "$greetd_cfg" >/dev/null <<'EOF'
 [terminal]
 vt = 1
 
 [default_session]
-command = "$greeter_cmd"
+command = "dms-greeter --command niri"
 user = "greeter"
 EOF
     ok "wrote $greetd_cfg"
