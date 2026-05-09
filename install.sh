@@ -92,6 +92,8 @@ system_update() {
 # ---------- terra repo + subrepos ----------
 install_terra() {
     hdr "terra repo"
+
+    # 1. base terra repo via terra-release
     if rpm -q terra-release >/dev/null 2>&1; then
         ok "terra-release already installed"
     else
@@ -101,19 +103,25 @@ install_terra() {
         ok "terra-release installed"
     fi
 
-    # enable all terra subrepos shipped by terra-release
-    log "enabling all terra subrepos"
-    mapfile -t TERRA_REPOS < <(dnf repolist --all 2>/dev/null \
-        | awk 'tolower($1) ~ /^terra/ {print $1}')
-    if (( ${#TERRA_REPOS[@]} == 0 )); then
-        warn "no terra repos discovered in dnf repolist"
-    else
-        sudo dnf config-manager setopt "${TERRA_REPOS[@]/%/.enabled=1}" 2>/dev/null \
-            || for r in "${TERRA_REPOS[@]}"; do sudo dnf config-manager --set-enabled "$r" || true; done
-        ok "terra subrepos enabled: ${TERRA_REPOS[*]}"
+    # 2. sub-repos. each ships as its own terra-release-<name> subpackage; installing
+    #    the subpackage drops the matching .repo file (terra-extras, terra-mesa,
+    #    terra-nvidia, terra-multimedia). docs:
+    #    https://developer.fyralabs.com/terra/installing
+    local subrepos=(terra-release-extras terra-release-mesa terra-release-nvidia)
+    # terra-multimedia is Fedora 43+
+    if (( FEDORA_VER >= 43 )); then
+        subrepos+=(terra-release-multimedia)
     fi
 
+    log "installing terra sub-repo packages: ${subrepos[*]}"
+    sudo dnf install -y "${subrepos[@]}"
+
+    # 3. confirm what's now enabled
+    log "enabled terra repos:"
+    dnf repolist --enabled 2>/dev/null | awk 'tolower($1) ~ /^terra/ {print "    " $1}'
+
     sudo dnf makecache
+    ok "terra + sub-repos ready"
 }
 
 # ---------- nvidia drivers (from terra) ----------
