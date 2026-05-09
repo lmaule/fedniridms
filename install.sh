@@ -198,6 +198,17 @@ install_dms() {
     ok "DMS installed"
 }
 
+# ---------- file manager ----------
+install_file_manager() {
+    hdr "file manager (nautilus)"
+    if rpm -q nautilus >/dev/null 2>&1; then
+        ok "nautilus already installed"
+    else
+        sudo dnf install -y nautilus
+        ok "nautilus installed"
+    fi
+}
+
 # ---------- dms greeter (greetd-based login screen) ----------
 # dms-greeter is NOT in Terra — it ships from copr avengemedia/danklinux.
 # docs: https://danklinux.com/docs/dankgreeter/
@@ -360,6 +371,7 @@ main() {
     install_nvidia
     install_niri
     install_dms
+    install_file_manager
     install_dms_greeter
     configure_niri
     finish
