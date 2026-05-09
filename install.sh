@@ -89,21 +89,6 @@ system_update() {
     ok "system up to date"
 }
 
-# ---------- rpm fusion (needed for nvidia) ----------
-install_rpmfusion() {
-    hdr "rpm fusion"
-    if rpm -q rpmfusion-free-release >/dev/null 2>&1 \
-       && rpm -q rpmfusion-nonfree-release >/dev/null 2>&1; then
-        ok "rpm fusion already enabled"
-        return
-    fi
-    sudo dnf install -y \
-        "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_VER}.noarch.rpm" \
-        "https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-${FEDORA_VER}.noarch.rpm"
-    sudo dnf install -y core
-    ok "rpm fusion enabled"
-}
-
 # ---------- terra repo + subrepos ----------
 install_terra() {
     hdr "terra repo"
@@ -131,15 +116,21 @@ install_terra() {
     sudo dnf makecache
 }
 
-# ---------- nvidia drivers ----------
+# ---------- nvidia drivers (from terra) ----------
 install_nvidia() {
-    hdr "nvidia drivers"
+    hdr "nvidia drivers (terra)"
     if rpm -q akmod-nvidia >/dev/null 2>&1; then
         ok "akmod-nvidia already installed"
     else
-        sudo dnf install -y akmod-nvidia xorg-x11-drv-nvidia-cuda \
-            nvidia-vaapi-driver libva-utils vdpauinfo
-        ok "nvidia packages installed"
+        # Terra ships akmod-nvidia + companions; pull them from terra explicitly
+        # so we don't accidentally fall through to a different source.
+        sudo dnf install -y --setopt=install_weak_deps=False \
+            akmod-nvidia \
+            xorg-x11-drv-nvidia-cuda \
+            nvidia-vaapi-driver \
+            libva-utils \
+            vdpauinfo
+        ok "nvidia packages installed from terra"
     fi
 
     # enable kms for wayland (required by niri on nvidia)
@@ -222,6 +213,66 @@ install_dms() {
         || warn "some optional DMS deps failed; continuing"
 
     ok "DMS installed"
+}
+
+# ---------- dms greeter (greetd-based login screen) ----------
+install_dms_greeter() {
+    hdr "dms greeter"
+
+    # greetd is the login manager DMS plugs into
+    sudo dnf install -y greetd || {
+        err "could not install greetd"
+        return 1
+    }
+
+    # the dms greeter package itself (try the canonical name then fallbacks)
+    local greeter_pkg=""
+    for cand in dms-greeter dankmaterialshell-greeter dms-greetd; do
+        if sudo dnf install -y "$cand" >/dev/null 2>&1; then
+            greeter_pkg="$cand"
+            break
+        fi
+    done
+    if [[ -z "$greeter_pkg" ]]; then
+        err "could not find a DMS greeter package in enabled repos. try: dnf search dms greeter"
+        return 1
+    fi
+    ok "installed $greeter_pkg"
+
+    # point greetd at the dms greeter
+    local greetd_cfg=/etc/greetd/config.toml
+    if [[ -f "$greetd_cfg" ]]; then
+        sudo cp -n "$greetd_cfg" "${greetd_cfg}.bak" || true
+    fi
+
+    # the dms greeter ships a launcher; prefer it, otherwise call dms directly
+    local greeter_cmd
+    if command -v dms-greeter >/dev/null 2>&1; then
+        greeter_cmd='dms-greeter'
+    else
+        greeter_cmd='dms run --greeter'
+    fi
+
+    sudo install -d -m 0755 /etc/greetd
+    sudo tee "$greetd_cfg" >/dev/null <<EOF
+[terminal]
+vt = 1
+
+[default_session]
+command = "$greeter_cmd"
+user = "greeter"
+EOF
+    ok "wrote $greetd_cfg"
+
+    # disable any other display manager that may have come along, then enable greetd
+    for dm in gdm sddm lightdm lxdm; do
+        if systemctl is-enabled --quiet "$dm" 2>/dev/null; then
+            sudo systemctl disable --now "$dm" || true
+        fi
+    done
+    sudo systemctl enable greetd.service
+    sudo systemctl set-default graphical.target
+    ok "greetd enabled as the default display manager"
 }
 
 # ---------- niri config to launch DMS ----------
@@ -309,14 +360,14 @@ ${GRN}install complete.${RST}
 next steps:
   1. ${BLD}reboot${RST} so the NVIDIA kms cmdline + freshly built modules take effect:
        sudo reboot
-  2. log back in on a TTY and run: ${BLD}niri-session${RST}
-       (or just: niri --session)
-  3. DMS is set to auto-spawn from the niri config at ~/.config/niri/config.kdl
+  2. you'll be greeted by ${BLD}dms-greeter${RST} (greetd); log in and niri starts.
+     DMS auto-spawns from ~/.config/niri/config.kdl
 
 verify after reboot:
   - nvidia driver:  nvidia-smi
   - kms:            cat /sys/module/nvidia_drm/parameters/modeset   # expect: Y
   - terra repos:    dnf repolist --enabled | grep -i terra
+  - greetd:         systemctl status greetd
   - niri:           niri --version
   - dms:            dms --version || quickshell --version
 
@@ -330,11 +381,11 @@ EOF
 main() {
     preflight
     system_update
-    install_rpmfusion
     install_terra
     install_nvidia
     install_niri
     install_dms
+    install_dms_greeter
     configure_niri
     finish
 }

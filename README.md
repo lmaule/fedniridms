@@ -6,11 +6,11 @@ Install script to configure a brand-new minimal Fedora install with **Niri** and
 
 1. **Preflight** — verifies Fedora, sudo, network, base CLI tools, and an NVIDIA GPU.
 2. **System update** — `dnf upgrade --refresh`.
-3. **RPM Fusion** (free + nonfree) — required for the proprietary NVIDIA driver.
-4. **Terra repository** — installs `terra-release` and enables every Terra subrepo it ships.
-5. **NVIDIA drivers** — `akmod-nvidia` + CUDA + VAAPI; sets `nvidia-drm.modeset=1`, blacklists nouveau, waits for the kernel module to build.
-6. **Niri compositor** — installs `niri` and the usual Wayland session bits (xdg-desktop-portal, PipeWire, Polkit, NetworkManager, fuzzel, mako, grim/slurp, wl-clipboard, etc.).
-7. **Dank Material Shell** — installs `quickshell`, `dgop`, and `dms` from Terra plus fonts/icons.
+3. **Terra repository** — installs `terra-release` and enables every Terra subrepo it ships. Terra provides the NVIDIA driver, Niri, DMS, and the DMS greeter, so no RPM Fusion is needed.
+4. **NVIDIA drivers** (from Terra) — `akmod-nvidia` + CUDA + VAAPI; sets `nvidia-drm.modeset=1`, blacklists nouveau, waits for the kernel module to build.
+5. **Niri compositor** — installs `niri` and the usual Wayland session bits (xdg-desktop-portal, PipeWire, Polkit, NetworkManager, fuzzel, mako, grim/slurp, wl-clipboard, etc.).
+6. **Dank Material Shell** — installs `quickshell`, `dgop`, and `dms` from Terra plus fonts/icons.
+7. **DMS greeter** — installs `greetd` + `dms-greeter` and sets it as the default display manager (graphical target).
 8. **Niri config** — writes a starter `~/.config/niri/config.kdl` that auto-spawns DMS and sets the NVIDIA Wayland env vars.
 
 The script is **idempotent** — re-running it skips anything already in place.
@@ -33,13 +33,7 @@ cd fedniridms
 ./install.sh
 ```
 
-When it finishes, **reboot** so the NVIDIA kernel command line (`nvidia-drm.modeset=1`) and the freshly built `akmod-nvidia` module take effect. Then log back in on a TTY and run:
-
-```bash
-niri-session
-```
-
-DMS is configured to auto-spawn.
+When it finishes, **reboot** so the NVIDIA kernel command line (`nvidia-drm.modeset=1`) and the freshly built `akmod-nvidia` module take effect. On reboot you'll be greeted by `dms-greeter` (running under `greetd`); log in and Niri will start with DMS auto-spawning.
 
 ## Verifying after reboot
 
@@ -47,5 +41,6 @@ DMS is configured to auto-spawn.
 nvidia-smi
 cat /sys/module/nvidia_drm/parameters/modeset   # expect: Y
 dnf repolist --enabled | grep -i terra
+systemctl status greetd
 niri --version
 ```
