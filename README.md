@@ -6,7 +6,7 @@ Install script to configure a brand-new minimal Fedora install with **Niri** and
 
 1. **Preflight** — verifies Fedora, sudo, network, base CLI tools, and an NVIDIA GPU.
 2. **System update** — `dnf upgrade --refresh`.
-3. **Terra repository** — installs `terra-release` and enables every Terra subrepo it ships. Terra provides the NVIDIA driver, Niri, DMS, and the DMS greeter, so no RPM Fusion is needed.
+3. **Terra repository + sub-repos** — installs `terra-release` and the `terra-release-extras`, `terra-release-mesa`, `terra-release-nvidia` (and `terra-release-multimedia` on Fedora 43+) subpackages, which lay down the matching `.repo` files. Terra provides the NVIDIA driver, Niri, DMS, and the DMS greeter, so no RPM Fusion is needed. See https://developer.fyralabs.com/terra/installing.
 4. **NVIDIA drivers** (from Terra) — `akmod-nvidia` + CUDA + VAAPI; sets `nvidia-drm.modeset=1`, blacklists nouveau, waits for the kernel module to build.
 5. **Niri compositor** — installs `niri`. All Wayland session bits (xdg-desktop-portal, PipeWire, Polkit, etc.) come along automatically as Niri's dependencies.
 6. **Dank Material Shell** — installs `dms` from Terra. `quickshell`, `dgop`, fonts, and other DMS deps are pulled in automatically.
