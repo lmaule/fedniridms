@@ -134,7 +134,6 @@ install_nvidia() {
         # so we don't accidentally fall through to a different source.
         sudo dnf install -y \
             akmod-nvidia \
-            xorg-x11-drv-nvidia-cuda \
             nvidia-vaapi-driver \
             libva-utils \
             vdpauinfo
