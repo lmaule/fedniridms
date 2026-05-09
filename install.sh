@@ -173,44 +173,20 @@ install_niri() {
         ok "niri installed"
     fi
 
-    # session essentials niri usually expects
-    sudo dnf install -y \
-        xdg-desktop-portal-gnome xdg-desktop-portal-gtk \
-        pipewire pipewire-pulseaudio wireplumber \
-        polkit gnome-keyring \
-        brightnessctl playerctl \
-        wl-clipboard grim slurp \
-        fuzzel mako swaybg swayidle swaylock \
-        network-manager-applet NetworkManager \
-        pavucontrol \
-        || warn "one or more session helper packages failed; continuing"
-
-    sudo systemctl enable --now NetworkManager
-    ok "niri session deps installed"
+    sudo systemctl enable --now NetworkManager 2>/dev/null || true
 }
 
 # ---------- dank material shell ----------
 install_dms() {
     hdr "dank material shell"
 
-    # DMS runs on quickshell; both ship via terra
-    sudo dnf install -y quickshell dgop dms || {
-        warn "primary DMS package install failed; trying alternate package names"
-        sudo dnf install -y quickshell dgop dank-material-shell || {
+    sudo dnf install -y dms || {
+        warn "package 'dms' not found; trying 'dank-material-shell'"
+        sudo dnf install -y dank-material-shell || {
             err "could not install DMS from terra. check 'dnf search dms' / 'dnf search dank'."
             return 1
         }
     }
-
-    # fonts + icons DMS expects
-    sudo dnf install -y \
-        google-noto-fonts-common google-noto-sans-fonts \
-        google-noto-sans-mono-fonts google-noto-emoji-fonts \
-        google-noto-color-emoji-fonts \
-        jetbrains-mono-fonts-all \
-        material-icons-fonts adw-gtk3-theme papirus-icon-theme \
-        ddcutil ddcui \
-        || warn "some optional DMS deps failed; continuing"
 
     ok "DMS installed"
 }
@@ -218,12 +194,6 @@ install_dms() {
 # ---------- dms greeter (greetd-based login screen) ----------
 install_dms_greeter() {
     hdr "dms greeter"
-
-    # greetd is the login manager DMS plugs into
-    sudo dnf install -y greetd || {
-        err "could not install greetd"
-        return 1
-    }
 
     # the dms greeter package itself (try the canonical name then fallbacks)
     local greeter_pkg=""
@@ -237,7 +207,7 @@ install_dms_greeter() {
         err "could not find a DMS greeter package in enabled repos. try: dnf search dms greeter"
         return 1
     fi
-    ok "installed $greeter_pkg"
+    ok "installed $greeter_pkg (greetd pulled in as a dependency)"
 
     # point greetd at the dms greeter
     local greetd_cfg=/etc/greetd/config.toml
@@ -347,8 +317,7 @@ binds {
 }
 KDL
 
-    sudo dnf install -y foot >/dev/null 2>&1 || warn "foot terminal not installed"
-    ok "wrote $cfg"
+    ok "wrote $cfg (note: Mod+Return launches 'foot' — install your terminal of choice)"
 }
 
 # ---------- summary ----------
